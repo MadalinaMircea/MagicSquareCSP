@@ -1,0 +1,6 @@
+CSPBacktracking,1,0.10969000000000001
+CSPBacktracking,2,0.137629
+CSPBacktrackingWithReferences,1,0.105681
+CSPBacktrackingWithReferences,2,0.12965500000000002
+CSPMatrix,1,0.11668599999999998
+CSPMatrix,2,0.139624

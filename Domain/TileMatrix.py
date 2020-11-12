@@ -1,4 +1,4 @@
-class Tile:
+class TileMatrix:
     def __init__(self, line, col):
         self.__line = line
         self.__col = col
@@ -8,10 +8,14 @@ class Tile:
     def get_line(self):
         return self.__line
 
+
+
     def get_col(self):
         return self.__col
 
     def get_value(self):
+        if self.__current_index == -1:
+            return -1
         return self.__domain[self.__current_index]
 
     def can_increment_index(self):
@@ -25,3 +29,12 @@ class Tile:
 
     def set_current_index(self, index):
         self.__current_index = index
+
+    def __str__(self):
+        if self.__current_index == -1:
+            return "-1"
+
+        return str(self.get_value())
+
+    def is_assigned(self):
+        return self.__current_index != -1

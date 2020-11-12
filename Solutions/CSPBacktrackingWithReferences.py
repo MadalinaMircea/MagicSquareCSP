@@ -1,14 +1,15 @@
-from Tile import Tile
-from CSPSolution import CSPSolution
+from Domain.TileWithReferences import TileWithReferences
+from Utils.CSPSolution import CSPSolution
 import datetime as dt
 from copy import deepcopy
+import networkx as nx
 
 """
 Variables: Tiles on the grid
 Variable Domains: Numbers from 1 to n^2
 Constraints: The sum on all the lines, columns and both diagonals needs to be equal ( (n * (n^2 + 1) / 2 )
 """
-class CSPBacktracking:
+class CSPBacktrackingWithReferences:
     def __init__(self, n):
         self.__n = n
         self.__n2 = n * n
@@ -20,9 +21,14 @@ class CSPBacktracking:
     def create_tiles(self):
         for i in range(self.__n):
             for j in range(self.__n):
-                t = Tile(i, j)
+                t = TileWithReferences(i, j, self.__n)
                 t.set_domain(self.__domain)
                 self.__tiles.append(t)
+
+        for i in range(len(self.__tiles)):
+            for j in range(len(self.__tiles)):
+                if i != j:
+                    self.__tiles[i].add_if_neighbour(self.__tiles[j])
 
     def is_valid(self, currentPos):
         for i in range(currentPos):
@@ -37,30 +43,19 @@ class CSPBacktracking:
         mainSum = lineSum
         secSum = lineSum
 
-        for k in range(currentPos):
-            lineK = self.__tiles[k].get_line()
-            colK = self.__tiles[k].get_col()
-
-            if lineK == line:
-                lineSum += self.__tiles[k].get_value()
-
-            if colK == col:
-                colSum += self.__tiles[k].get_value()
-
-            if line == col and lineK == colK:
-                mainSum += self.__tiles[k].get_value()
-
-            if line + col == self.__n - 1 and lineK + colK == self.__n - 1:
-                secSum += self.__tiles[k].get_value()
-
-            if lineSum > self.__sum or colSum > self.__sum or mainSum > self.__sum or secSum > self.__sum:
-                return False
+        for x in self.__tiles[currentPos].get_line_neighbours():
+            if x.get_current_index() != -1:
+                lineSum += x.get_value()
 
         if col < self.__n - 1 and lineSum >= self.__sum:
             return False
 
         if col == self.__n - 1 and lineSum != self.__sum:
             return False
+
+        for x in self.__tiles[currentPos].get_col_neighbours():
+            if x.get_current_index() != -1:
+                colSum += x.get_value()
 
         if line < self.__n - 1 and colSum >= self.__sum:
             return False
@@ -69,6 +64,10 @@ class CSPBacktracking:
             return False
 
         if line == col:
+            for x in self.__tiles[currentPos].get_main_diag_neighbours():
+                if x.get_current_index() != -1:
+                    mainSum += x.get_value()
+
             if line < self.__n - 1 and mainSum >= self.__sum:
                 return False
 
@@ -76,21 +75,36 @@ class CSPBacktracking:
                 return False
 
         if line + col == self.__n - 1:
+            for x in self.__tiles[currentPos].get_sec_diag_neighbours():
+                if x.get_current_index() != -1:
+                    secSum += x.get_value()
+
             if line < self.__n - 1 and secSum >= self.__sum:
                 return False
 
             if line == self.__n - 1 and secSum != self.__sum:
                 return False
-        
+
         return True
 
     def is_solution(self, currentPos):
         return currentPos == len(self.__tiles) - 1
 
+    def pretty_print(self):
+        result = ""
+        for t in self.__tiles:
+            result = result + str(t.get_value()) + " "
+
+        return result
+
     def back(self, maxSolutions):
         currentPos = 0
         start = dt.datetime.now()
         solutions = []
+        graph = nx.Graph()
+        nodes = ["0"]
+        prev_node = 0
+        graph.add_node("0")
 
         while currentPos > -1:
             chosen = False
@@ -99,17 +113,30 @@ class CSPBacktracking:
                 self.__tiles[currentPos].increment_index()
                 chosen = self.is_valid(currentPos)
             if chosen:
+                current_node = self.pretty_print()
+                if not graph.has_node(current_node):
+                    graph.add_node(current_node)
+                graph.add_edge(nodes[prev_node], current_node)
+                nodes.append(current_node)
+                prev_node += 1
+                current_node = self.pretty_print()
+                if not graph.has_node(current_node):
+                    graph.add_node(current_node)
+                graph.add_edge(nodes[prev_node], current_node)
+                nodes.append(current_node)
+                prev_node += 1
                 if self.is_solution(currentPos):
                     sol = CSPSolution(deepcopy(self.__tiles),
-                                                 (dt.datetime.now() - start).total_seconds(), self.__n)
+                                                 (dt.datetime.now() - start).total_seconds(), self.__n, 1)
                     solutions.append(sol)
-                    yield sol
                     if len(solutions) == maxSolutions:
-                        return solutions
+                        return solutions, graph
                 currentPos += 1
             else:
                 if currentPos < len(self.__tiles):
                     self.__tiles[currentPos].set_current_index(-1)
                 currentPos -= 1
+                if prev_node != 0:
+                    prev_node -= 1
 
-        return solutions
+        return solutions, graph
